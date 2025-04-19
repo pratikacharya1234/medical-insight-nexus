@@ -32,8 +32,16 @@ interface GeminiResponse {
   }[];
 }
 
-// Mock API key - in a real app, this would be stored securely
-const API_KEY = "GEMINI_API_KEY"; // Replace with your actual API key
+// Get the API key from localStorage or use the default one
+const getApiKey = () => {
+  const storedKey = localStorage.getItem('GEMINI_API_KEY');
+  return storedKey || "GEMINI_API_KEY"; // Replace with your actual API key
+};
+
+// Function to store the API key
+export const setGeminiApiKey = (apiKey: string) => {
+  localStorage.setItem('GEMINI_API_KEY', apiKey);
+};
 
 // Function to convert file to base64
 export const fileToBase64 = (file: File): Promise<string> => {
@@ -65,6 +73,9 @@ export const analyzeMedicalData = async (
   patientId: string
 ) => {
   try {
+    // Get the API key
+    const API_KEY = getApiKey();
+    
     // Convert images to base64
     const imagePromises = images
       .filter((file) => file.type.startsWith("image/"))
@@ -124,30 +135,57 @@ export const analyzeMedicalData = async (
       },
     };
 
-    // In a real implementation, we'd make an actual API call
-    // For now, we'll simulate a response
-    console.log("Sending request to Gemini API:", requestBody);
+    // Log the API request (without sensitive data)
+    console.log("Sending request to Gemini API with", images.length, "images");
     
-    // Simulate API call with a timeout
-    await new Promise((resolve) => setTimeout(resolve, 3000));
-    
-    // Since this is a prototype, we'll return mock data
-    // In a real implementation, this would be:
-    // const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent?key=${API_KEY}`, {
-    //   method: "POST",
-    //   headers: {
-    //     "Content-Type": "application/json",
-    //   },
-    //   body: JSON.stringify(requestBody),
-    // });
-    // const data = await response.json();
-    
-    // For prototype, return success message
-    return {
-      success: true,
-      message: "Analysis completed successfully",
-      // In a real implementation, we'd parse the Gemini API response here
-    };
+    // In a real implementation, we would make an actual API call
+    // For now, we'll simulate a response for development purposes
+    if (API_KEY === "GEMINI_API_KEY") {
+      // If using the default key, simulate a response
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      
+      return {
+        success: true,
+        message: "Analysis completed successfully",
+        diagnosis: "Simulated diagnosis results (API key not provided)",
+        confidence: 0.85,
+        alternatives: ["Alternative diagnosis 1", "Alternative diagnosis 2"],
+        findings: ["Finding 1", "Finding 2", "Finding 3"],
+        recommendations: ["Recommendation 1", "Recommendation 2"]
+      };
+    } else {
+      // With a real key, make the actual API call
+      try {
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent?key=${API_KEY}`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(requestBody),
+          }
+        );
+
+        if (!response.ok) {
+          const errorData = await response.text();
+          console.error("Gemini API error:", errorData);
+          throw new Error(`API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const result = data.candidates[0].content.parts[0].text;
+
+        return {
+          success: true,
+          message: "Analysis completed successfully",
+          result: result,
+        };
+      } catch (apiError) {
+        console.error("API call error:", apiError);
+        throw apiError;
+      }
+    }
   } catch (error) {
     console.error("Error analyzing medical data:", error);
     toast.error("Failed to analyze medical data. Please try again.");

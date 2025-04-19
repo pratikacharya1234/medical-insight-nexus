@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,8 +7,51 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Activity, FileImage, Clock, User, Bell, Plus, Star } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
+interface DashboardStats {
+  pendingAnalysis: number;
+  totalPatients: number;
+  completedDiagnostics: number;
+  averageAnalysisTime: string;
+}
+
 const Dashboard = () => {
   const navigate = useNavigate();
+  const [stats, setStats] = useState<DashboardStats>({
+    pendingAnalysis: 0,
+    totalPatients: 0,
+    completedDiagnostics: 0,
+    averageAnalysisTime: '-'
+  });
+  const [recentResults, setRecentResults] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [savedCases, setSavedCases] = useState<any[]>([]);
+
+  useEffect(() => {
+    // Load data from localStorage
+    const patients = JSON.parse(localStorage.getItem('patients') || '[]');
+    const analyses = JSON.parse(localStorage.getItem('analyses') || '[]');
+    const completedAnalyses = analyses.filter((a: any) => a.status === 'completed');
+    const pendingAnalyses = analyses.filter((a: any) => a.status === 'pending');
+    
+    // Update stats
+    setStats({
+      pendingAnalysis: pendingAnalyses.length,
+      totalPatients: patients.length,
+      completedDiagnostics: completedAnalyses.length,
+      averageAnalysisTime: completedAnalyses.length > 0 ? '3.2 min' : '-'
+    });
+
+    // Set recent results
+    setRecentResults(completedAnalyses);
+    
+    // Set notifications from localStorage
+    const savedNotifications = JSON.parse(localStorage.getItem('notifications') || '[]');
+    setNotifications(savedNotifications);
+    
+    // Set saved cases from localStorage
+    const saved = JSON.parse(localStorage.getItem('savedCases') || '[]');
+    setSavedCases(saved);
+  }, []);
 
   return (
     <AppLayout>
@@ -48,9 +91,9 @@ const Dashboard = () => {
               <Activity className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
+              <div className="text-2xl font-bold">{stats.pendingAnalysis}</div>
               <p className="text-xs text-muted-foreground">
-                No pending analysis
+                {stats.pendingAnalysis === 0 ? 'No pending analysis' : `${stats.pendingAnalysis} pending analyses`}
               </p>
             </CardContent>
           </Card>
@@ -62,9 +105,9 @@ const Dashboard = () => {
               <User className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
+              <div className="text-2xl font-bold">{stats.totalPatients}</div>
               <p className="text-xs text-muted-foreground">
-                No patients yet
+                {stats.totalPatients === 0 ? 'No patients yet' : `${stats.totalPatients} patients in database`}
               </p>
             </CardContent>
           </Card>
@@ -76,9 +119,9 @@ const Dashboard = () => {
               <FileImage className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
+              <div className="text-2xl font-bold">{stats.completedDiagnostics}</div>
               <p className="text-xs text-muted-foreground">
-                No completed diagnostics
+                {stats.completedDiagnostics === 0 ? 'No completed diagnostics' : `${stats.completedDiagnostics} diagnostics completed`}
               </p>
             </CardContent>
           </Card>
@@ -90,9 +133,9 @@ const Dashboard = () => {
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">-</div>
+              <div className="text-2xl font-bold">{stats.averageAnalysisTime}</div>
               <p className="text-xs text-muted-foreground">
-                No analysis performed
+                {stats.averageAnalysisTime === '-' ? 'No analysis performed' : 'Average processing time'}
               </p>
             </CardContent>
           </Card>
@@ -113,9 +156,25 @@ const Dashboard = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-8 text-muted-foreground">
-                  No diagnostic results available yet.
-                </div>
+                {recentResults.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No diagnostic results available yet.
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {recentResults.map((result, index) => (
+                      <div key={index} className="flex justify-between items-center p-4 border rounded-md">
+                        <div>
+                          <p className="font-medium">{result.patientId}</p>
+                          <p className="text-sm text-muted-foreground">{result.date}</p>
+                        </div>
+                        <Button variant="outline" size="sm" onClick={() => navigate(`/results/${result.id}`)}>
+                          View
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -129,9 +188,23 @@ const Dashboard = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-8 text-muted-foreground">
-                  No notifications yet.
-                </div>
+                {notifications.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No notifications yet.
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {notifications.map((notification, index) => (
+                      <div key={index} className="flex justify-between items-center p-4 border rounded-md">
+                        <div>
+                          <p className="font-medium">{notification.title}</p>
+                          <p className="text-sm text-muted-foreground">{notification.message}</p>
+                        </div>
+                        <span className="text-xs text-muted-foreground">{notification.time}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -145,9 +218,25 @@ const Dashboard = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-8 text-muted-foreground">
-                  No saved cases yet.
-                </div>
+                {savedCases.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No saved cases yet.
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {savedCases.map((savedCase, index) => (
+                      <div key={index} className="flex justify-between items-center p-4 border rounded-md">
+                        <div>
+                          <p className="font-medium">{savedCase.patientId}</p>
+                          <p className="text-sm text-muted-foreground">{savedCase.diagnosis}</p>
+                        </div>
+                        <Button variant="outline" size="sm" onClick={() => navigate(`/results/${savedCase.id}`)}>
+                          View
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

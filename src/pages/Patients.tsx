@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,6 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Search, Filter, Plus, Calendar, FileText, FileImage, User, Activity } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from '@/components/ui/sonner';
 
 type PatientStatus = 'active' | 'referred' | 'discharged';
 
@@ -32,6 +34,25 @@ const Patients = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [patients, setPatients] = useState<Patient[]>([]);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [newPatient, setNewPatient] = useState({
+    firstName: '',
+    lastName: '',
+    dob: '',
+    gender: '',
+    phone: '',
+    email: '',
+    address: '',
+    consent: false
+  });
+
+  // Load patients from localStorage on component mount
+  useEffect(() => {
+    const savedPatients = localStorage.getItem('patients');
+    if (savedPatients) {
+      setPatients(JSON.parse(savedPatients));
+    }
+  }, []);
 
   const filteredPatients = patients.filter(patient => {
     const matchesSearch = patient.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -43,9 +64,78 @@ const Patients = () => {
     return matchesSearch && matchesStatus;
   });
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { id, value } = e.target;
+    setNewPatient(prev => ({
+      ...prev,
+      [id]: value
+    }));
+  };
+
+  const handleSelectChange = (field: string, value: string) => {
+    setNewPatient(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleCheckboxChange = (field: string, checked: boolean) => {
+    setNewPatient(prev => ({
+      ...prev,
+      [field]: checked
+    }));
+  };
+
   const handleNewPatient = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Add logic to create a new patient
+    
+    // Generate a unique ID for the patient
+    const patientId = `PT-${Math.floor(100000 + Math.random() * 900000)}`;
+    
+    // Calculate age from DOB
+    const birthDate = new Date(newPatient.dob);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    
+    // Format today's date
+    const formattedDate = today.toISOString().split('T')[0];
+    
+    // Create new patient object
+    const patient: Patient = {
+      id: patientId,
+      name: `${newPatient.firstName} ${newPatient.lastName}`,
+      age,
+      gender: newPatient.gender,
+      condition: "New Patient",
+      status: "active",
+      lastVisit: formattedDate,
+    };
+    
+    // Add to patients array
+    const updatedPatients = [...patients, patient];
+    setPatients(updatedPatients);
+    
+    // Save to localStorage
+    localStorage.setItem('patients', JSON.stringify(updatedPatients));
+    
+    // Reset form and close dialog
+    setNewPatient({
+      firstName: '',
+      lastName: '',
+      dob: '',
+      gender: '',
+      phone: '',
+      email: '',
+      address: '',
+      consent: false
+    });
+    setIsDialogOpen(false);
+    
+    toast.success(`Patient ${patient.name} added successfully`);
   };
 
   return (
@@ -58,7 +148,7 @@ const Patients = () => {
               Manage and view your patient records
             </p>
           </div>
-          <Dialog>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button>
                 <Plus className="mr-2 h-4 w-4" />
@@ -75,28 +165,47 @@ const Patients = () => {
               <form onSubmit={handleNewPatient}>
                 <div className="grid gap-4 py-4">
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="first-name" className="text-right">
+                    <Label htmlFor="firstName" className="text-right">
                       First name
                     </Label>
-                    <Input id="first-name" className="col-span-3" required />
+                    <Input 
+                      id="firstName" 
+                      value={newPatient.firstName}
+                      onChange={handleInputChange}
+                      className="col-span-3" 
+                      required 
+                    />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="last-name" className="text-right">
+                    <Label htmlFor="lastName" className="text-right">
                       Last name
                     </Label>
-                    <Input id="last-name" className="col-span-3" required />
+                    <Input 
+                      id="lastName" 
+                      value={newPatient.lastName}
+                      onChange={handleInputChange}
+                      className="col-span-3" 
+                      required 
+                    />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="dob" className="text-right">
                       Date of Birth
                     </Label>
-                    <Input id="dob" type="date" className="col-span-3" required />
+                    <Input 
+                      id="dob" 
+                      type="date" 
+                      value={newPatient.dob}
+                      onChange={handleInputChange}
+                      className="col-span-3" 
+                      required 
+                    />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="gender" className="text-right">
                       Gender
                     </Label>
-                    <Select>
+                    <Select value={newPatient.gender} onValueChange={(value) => handleSelectChange('gender', value)}>
                       <SelectTrigger id="gender" className="col-span-3">
                         <SelectValue placeholder="Select gender" />
                       </SelectTrigger>
@@ -112,26 +221,47 @@ const Patients = () => {
                     <Label htmlFor="phone" className="text-right">
                       Phone
                     </Label>
-                    <Input id="phone" type="tel" className="col-span-3" />
+                    <Input 
+                      id="phone" 
+                      type="tel" 
+                      value={newPatient.phone}
+                      onChange={handleInputChange}
+                      className="col-span-3" 
+                    />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="email" className="text-right">
                       Email
                     </Label>
-                    <Input id="email" type="email" className="col-span-3" />
+                    <Input 
+                      id="email" 
+                      type="email" 
+                      value={newPatient.email}
+                      onChange={handleInputChange}
+                      className="col-span-3" 
+                    />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="address" className="text-right">
                       Address
                     </Label>
-                    <Input id="address" className="col-span-3" />
+                    <Input 
+                      id="address" 
+                      value={newPatient.address}
+                      onChange={handleInputChange}
+                      className="col-span-3" 
+                    />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label className="text-right" htmlFor="consent">
                       Consent
                     </Label>
                     <div className="flex items-center space-x-2 col-span-3">
-                      <Checkbox id="consent" />
+                      <Checkbox 
+                        id="consent" 
+                        checked={newPatient.consent}
+                        onCheckedChange={(checked) => handleCheckboxChange('consent', checked === true)}
+                      />
                       <label
                         htmlFor="consent"
                         className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"

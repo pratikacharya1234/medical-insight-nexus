@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,7 +8,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { FileImage, FileText, FileUp, X, Loader2 } from "lucide-react";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "@/components/ui/sonner";
+import { useNavigate } from "react-router-dom";
+import { analyzeMedicalData } from "@/lib/gemini-service";
 
 interface FileWithPreview extends File {
   preview?: string;
@@ -16,7 +18,7 @@ interface FileWithPreview extends File {
 }
 
 export default function DiagnosticUpload() {
-  const { toast } = useToast();
+  const navigate = useNavigate();
   const [files, setFiles] = useState<FileWithPreview[]>([]);
   const [patientNotes, setPatientNotes] = useState("");
   const [patientId, setPatientId] = useState("");
@@ -24,6 +26,15 @@ export default function DiagnosticUpload() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [dragActive, setDragActive] = useState(false);
+  const [patients, setPatients] = useState<any[]>([]);
+
+  // Load patients from localStorage
+  useEffect(() => {
+    const savedPatients = localStorage.getItem('patients');
+    if (savedPatients) {
+      setPatients(JSON.parse(savedPatients));
+    }
+  }, []);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -75,57 +86,96 @@ export default function DiagnosticUpload() {
     });
   };
 
-  const simulateUpload = () => {
+  const handleAnalysis = async () => {
     setIsUploading(true);
     setUploadProgress(0);
-
-    const interval = setInterval(() => {
+    
+    // Simulate progress
+    const progressInterval = setInterval(() => {
       setUploadProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setIsUploading(false);
-          handleUploadSuccess();
-          return 100;
+        if (prev >= 90) {
+          clearInterval(progressInterval);
+          return 90;
         }
         return prev + 5;
       });
     }, 150);
-  };
-
-  const handleUploadSuccess = () => {
-    toast({
-      title: "Files uploaded successfully",
-      description: `${files.length} file(s) have been uploaded for analysis`,
-    });
     
-    // In a real app, we would navigate to a results page or show analysis in progress
-    setTimeout(() => {
-      setPatientNotes("");
-      setPatientId("");
-      setFiles([]);
+    try {
+      // Perform analysis using Gemini API
+      const result = await analyzeMedicalData(files, patientNotes, patientId);
+      
+      if (result.success) {
+        // Complete the progress bar
+        setUploadProgress(100);
+        clearInterval(progressInterval);
+        
+        // Create an analysis record
+        const analysisId = `AN-${Math.floor(100000 + Math.random() * 900000)}`;
+        const now = new Date();
+        const formattedDate = now.toISOString();
+        
+        const newAnalysis = {
+          id: analysisId,
+          patientId: patientId,
+          date: formattedDate,
+          type: imageType,
+          notes: patientNotes,
+          status: 'completed',
+          result: result
+        };
+        
+        // Save to localStorage
+        const existingAnalyses = JSON.parse(localStorage.getItem('analyses') || '[]');
+        const updatedAnalyses = [...existingAnalyses, newAnalysis];
+        localStorage.setItem('analyses', JSON.stringify(updatedAnalyses));
+        
+        // Create a notification
+        const notification = {
+          id: `NT-${Math.floor(100000 + Math.random() * 900000)}`,
+          title: 'Analysis Completed',
+          message: `Analysis for patient ${patientId} has been completed.`,
+          time: formattedDate,
+          read: false
+        };
+        
+        const existingNotifications = JSON.parse(localStorage.getItem('notifications') || '[]');
+        const updatedNotifications = [notification, ...existingNotifications];
+        localStorage.setItem('notifications', JSON.stringify(updatedNotifications));
+        
+        // Success message
+        toast.success("Analysis completed successfully");
+        
+        // Navigate to results after a short delay
+        setTimeout(() => {
+          navigate('/results');
+        }, 1000);
+      } else {
+        clearInterval(progressInterval);
+        setUploadProgress(0);
+        setIsUploading(false);
+        toast.error("Analysis failed. Please try again.");
+      }
+    } catch (error) {
+      clearInterval(progressInterval);
       setUploadProgress(0);
-    }, 2000);
+      setIsUploading(false);
+      toast.error("An error occurred during analysis");
+      console.error("Analysis error:", error);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (files.length === 0) {
-      toast({
-        title: "No files selected",
-        description: "Please upload at least one medical image or document.",
-        variant: "destructive",
-      });
+      toast.error("No files selected");
       return;
     }
     if (!patientId) {
-      toast({
-        title: "Patient ID required",
-        description: "Please enter a patient ID to continue.",
-        variant: "destructive",
-      });
+      toast.error("Patient ID required");
       return;
     }
-    simulateUpload();
+    handleAnalysis();
   };
 
   const getFileIcon = (file: FileWithPreview) => {
@@ -150,13 +200,25 @@ export default function DiagnosticUpload() {
           {/* Patient ID */}
           <div className="space-y-2">
             <Label htmlFor="patientId">Patient ID</Label>
-            <Input
-              id="patientId"
-              value={patientId}
-              onChange={(e) => setPatientId(e.target.value)}
-              placeholder="Enter patient identifier"
-              required
-            />
+            <Select 
+              value={patientId} 
+              onValueChange={setPatientId}
+            >
+              <SelectTrigger id="patientId">
+                <SelectValue placeholder="Select or enter patient ID" />
+              </SelectTrigger>
+              <SelectContent>
+                {patients.length === 0 ? (
+                  <SelectItem value="new">Add new patient</SelectItem>
+                ) : (
+                  patients.map(patient => (
+                    <SelectItem key={patient.id} value={patient.id}>
+                      {patient.id} - {patient.name}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Image type selector */}
@@ -286,7 +348,7 @@ export default function DiagnosticUpload() {
           {isUploading && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label>Uploading</Label>
+                <Label>Processing</Label>
                 <span className="text-xs text-muted-foreground">
                   {uploadProgress}%
                 </span>

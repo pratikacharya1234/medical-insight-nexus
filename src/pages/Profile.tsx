@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -25,6 +26,14 @@ const Profile = () => {
     notificationsText: false
   });
 
+  // Load data from localStorage on component mount
+  useEffect(() => {
+    const savedUserData = localStorage.getItem('userData');
+    if (savedUserData) {
+      setUserData(JSON.parse(savedUserData));
+    }
+  }, []);
+
   const handleChange = (field: string, value: string | boolean) => {
     setUserData(prev => ({
       ...prev,
@@ -34,11 +43,18 @@ const Profile = () => {
 
   const handleSave = () => {
     setIsEditing(false);
+    // Save to localStorage
+    localStorage.setItem('userData', JSON.stringify(userData));
     toast.success('Profile updated successfully');
   };
 
   const handleCancel = () => {
     setIsEditing(false);
+    // Reload from localStorage to discard changes
+    const savedUserData = localStorage.getItem('userData');
+    if (savedUserData) {
+      setUserData(JSON.parse(savedUserData));
+    }
     toast.info('Changes discarded');
   };
 
