@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Stethoscope, User, ShieldCheck } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
+import { useNavigate } from "react-router-dom";
 
 type UserRole = "patient" | "doctor" | "admin";
 
@@ -19,6 +20,7 @@ export default function AuthForm() {
   const [name, setName] = useState("");
   const [role, setRole] = useState<UserRole>("patient");
   const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,12 +38,16 @@ export default function AuthForm() {
       
       if (isLogin) {
         toast.success("Login successful");
-        // Navigate to dashboard after login would go here
+        // Log for debugging
         console.log("Logged in with:", { email, password });
+        // Navigate to dashboard after login
+        navigate("/dashboard");
       } else {
         toast.success("Account created successfully");
-        // Navigate to dashboard after registration would go here
+        // Log for debugging
         console.log("Registered with:", { name, email, password, role });
+        // Navigate to dashboard after registration
+        navigate("/dashboard");
       }
     } catch (error) {
       toast.error("Authentication failed");
