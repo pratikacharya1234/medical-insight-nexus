@@ -1,10 +1,11 @@
-
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { BarChart, LineChart, PieChart } from "@/components/ui/chart";
+import { BarChart } from "@/components/ui/bar-chart";
+import { LineChart } from "@/components/ui/line-chart";
+import { PieChart } from "@/components/ui/pie-chart";
 import { Badge } from "@/components/ui/badge";
 import { Download, Info, AlertCircle, CheckCircle, Activity, FileText, MessageCircle, Clock } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
