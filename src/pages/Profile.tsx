@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,16 +12,16 @@ import { toast } from '@/components/ui/sonner';
 const Profile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [userData, setUserData] = useState({
-    name: 'Dr. Sam Lee',
-    email: 'dr.lee@medical-insight.com',
-    specialty: 'Radiology',
-    license: 'ML-12345-R',
-    phone: '+1 (555) 123-4567',
-    hospital: 'Central Medical Center',
-    department: 'Diagnostic Imaging',
-    bio: 'Board-certified radiologist with 8 years of experience specializing in diagnostic imaging and AI-assisted analysis.',
-    notificationsEmail: true,
-    notificationsApp: true,
+    name: '',
+    email: '',
+    specialty: '',
+    license: '',
+    phone: '',
+    hospital: '',
+    department: '',
+    bio: '',
+    notificationsEmail: false,
+    notificationsApp: false,
     notificationsText: false
   });
 
@@ -71,7 +70,7 @@ const Profile = () => {
                   <Avatar className="h-32 w-32 border-4 border-border">
                     <AvatarImage src="" />
                     <AvatarFallback className="text-3xl bg-medical-primary text-white">
-                      SL
+                      ?
                     </AvatarFallback>
                   </Avatar>
                   <Button variant="outline" className="w-full">Change Photo</Button>
